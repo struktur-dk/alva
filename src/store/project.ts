@@ -9,7 +9,7 @@ export interface ProjectProperties {
 	id?: string;
 	lastChangedAuthor?: string;
 	lastChangedDate?: Date;
-	name: string;
+	name?: string;
 	previewFrame: string;
 }
 
