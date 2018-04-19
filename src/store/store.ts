@@ -141,16 +141,11 @@ export class Store {
 
 	/**
 	 * Tries to guess a human-friendly name from an ID by splitting words at camel-case positions,
-	 * and capitalizing the first letter. If an actual name is provided, this comes first.
+	 * and capitalizing the first letter.
 	 * @param id The technical (internal) ID.
-	 * @param name The human-friendly name.
 	 * @return The guessed (or given) human-friendly name.
 	 */
-	public static guessName(id: string, name?: string): string {
-		if (name) {
-			return name;
-		}
-
+	public static guessName(id: string): string {
 		const guessedName = id
 			.replace(/[_-]+/, ' ')
 			.replace(/([a-z])([A-Z])/g, '$1 $2')

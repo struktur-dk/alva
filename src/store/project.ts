@@ -67,7 +67,7 @@ export class Project {
 	 */
 	public constructor(properties: ProjectProperties) {
 		this.id = properties.id ? properties.id : Uuid.v4();
-		this.name = properties.name;
+		this.name = properties.name || 'Unnamed project';
 		this.lastChangedAuthor = properties.lastChangedAuthor || 'unknown';
 		this.lastChangedDate = properties.lastChangedDate || new Date();
 		this.previewFrame = properties.previewFrame;

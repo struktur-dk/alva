@@ -74,7 +74,7 @@ export class Pattern {
 	 */
 	public constructor(id: string, name: string, implementationPath: string, exportName?: string) {
 		this.id = id;
-		this.name = Store.guessName(name);
+		this.name = name;
 		this.implementationPath = implementationPath || '';
 		this.exportName = exportName || 'default';
 	}

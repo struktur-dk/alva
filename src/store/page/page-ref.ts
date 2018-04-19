@@ -56,6 +56,7 @@ export class PageRef {
 	 */
 	public constructor(properties: PageRefProperties) {
 		this.id = properties.id ? properties.id : Uuid.v4();
+		this.name = properties.name || 'Unnamed page';
 		this.setProject(properties.project);
 
 		if (properties.path) {
@@ -64,8 +65,6 @@ export class PageRef {
 		} else {
 			this.updatePathFromNames();
 		}
-
-		this.name = Store.guessName(this.id, properties.name);
 	}
 
 	/**
