@@ -1,3 +1,4 @@
+import { CreateProjectCommand } from '../store/command/create-project-command';
 import {
 	BrowserWindow,
 	ipcRenderer,
@@ -96,7 +97,10 @@ export function createMenu(): void {
 				{
 					label: 'New P&roject',
 					enabled: !isSplashscreen,
-					accelerator: 'CmdOrCtrl+Shift+N'
+					accelerator: 'CmdOrCtrl+Shift+N',
+					click: () => {
+						store.execute(new CreateProjectCommand());
+					}
 				},
 				{
 					type: 'separator'

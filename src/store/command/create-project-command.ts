@@ -11,17 +11,22 @@ export interface CreateProjectProps {
  * A user operation that creates a Project with one empty page
  */
 export class CreateProjectCommand extends Command {
+
+	/**
+	 * The project this command created.
+	 */
+	private project: Project;
+
 	/**
 	 * @inheritDoc
 	 */
 	public execute(): boolean {
-		const projectProps = { previewFrame: '' };
-		const project: Project = new Project(projectProps);
-		const store = Store.getInstance();
-		store.addProject(project);
+		this.project = new Project({ previewFrame: '' });
+		Store.getInstance().addProject(this.project);
+		Store.getInstance().openProject(this.project.getId());
+
 		// tslint:disable-next-line:no-unused-expression
-		new PageRef({ project });
-		store.save();
+		new PageRef({ project : this.project });
 
 		return true;
 	}
@@ -37,6 +42,7 @@ export class CreateProjectCommand extends Command {
 	 * @inheritDoc
 	 */
 	public undo(): boolean {
+		Store.getInstance().removeProject(this.project);
 		return true;
 	}
 }
