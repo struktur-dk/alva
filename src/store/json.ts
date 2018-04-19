@@ -37,9 +37,13 @@ export class Persister {
 	 * Loads a given YAML file into a JSON object.
 	 * Supports to try to parse it as JSON as a fallback.
 	 * @param path The absolute and OS-dependent file-system path to the file.
-	 * @return The parsed JSON object.
+	 * @return The parsed JSON object, or undefined, if no such file exists.
 	 */
-	public static loadYamlOrJson(path: string): JsonObject {
+	public static loadYamlOrJson(path: string): JsonObject | undefined {
+		if (!FileUtils.existsSync(path)) {
+			return undefined;
+		}
+
 		try {
 			const fileContent: string = FileUtils.readFileSync(path, 'utf8');
 			return JsYaml.safeLoad(fileContent, JsYaml.JSON_SCHEMA) as JsonObject;

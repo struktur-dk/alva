@@ -119,9 +119,14 @@ export class Store {
 	 */
 	private constructor(basePreferencePath?: string) {
 		try {
-			this.preferences = Preferences.fromJsonObject(
-				Persister.loadYamlOrJson(this.getPreferencesPath(basePreferencePath))
+			const preferencesJson = Persister.loadYamlOrJson(
+				this.getPreferencesPath(basePreferencePath)
 			);
+			if (preferencesJson) {
+				this.preferences = Preferences.fromJsonObject(preferencesJson);
+			} else {
+				this.preferences = new Preferences();
+			}
 		} catch (error) {
 			this.preferences = new Preferences();
 		}
@@ -527,8 +532,12 @@ export class Store {
 				this.getPagesPath(),
 				pageRef.getLastPersistedPath() as string
 			);
-			const json: JsonObject = Persister.loadYamlOrJson(pagePath);
-			this.currentPage = Page.fromJsonObject(json, id);
+			const json: JsonObject | undefined = Persister.loadYamlOrJson(pagePath);
+			if (json) {
+				this.currentPage = Page.fromJsonObject(json, id);
+			} else {
+				this.currentPage = new Page(pageRef);
+			}
 			this.currentProject = this.currentPage.getProject();
 		} else {
 			this.currentPage = undefined;
@@ -593,7 +602,11 @@ export class Store {
 			// ignore the correct setup with missing projects.yaml
 		}
 
-		let json: JsonObject = Persister.loadYamlOrJson(alvaYamlPath);
+		let json: JsonObject | undefined = Persister.loadYamlOrJson(alvaYamlPath);
+		if (!json) {
+			console.error(`Cannot open styleguide "${styleguidePath}": alva/alva.yaml not found`);
+			return;
+		}
 
 		// TODO: Converts old alva.yaml structure to new one.
 		// This should be removed after the next version.
