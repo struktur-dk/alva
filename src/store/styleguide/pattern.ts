@@ -1,7 +1,6 @@
 import { PatternFolder } from './folder';
 import { ObjectProperty } from './property/object-property';
 import { Property } from './property/property';
-import { Store } from '../store';
 
 /**
  * A pattern represents a reusable, styled component (e.g. a React component) of the styleguide.
