@@ -2,6 +2,7 @@ import { App } from '../component/container/app';
 import { ipcRenderer, webFrame } from 'electron';
 import { ServerMessageType } from '../message';
 import * as MobX from 'mobx';
+import { EditState } from '../store/page/page-ref';
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
 import { AlvaView, Store } from '../store/store';
@@ -83,6 +84,15 @@ ipcRenderer.on('message', (e: Electron.Event, message: any) => {
 			store.copyElementById(message.payload);
 			break;
 		}
+		case ServerMessageType.NewPage: {
+			if (store.getActiveView() !== AlvaView.Pages) {
+				store.setActiveView(AlvaView.Pages);
+			}
+			const pageRef = store.addNewPageRef();
+			store.openPage(pageRef.getId());
+			pageRef.setNameState(EditState.Editing);
+			break;
+		}
 		case ServerMessageType.Paste: {
 			if (store.getActiveView() === AlvaView.Pages) {
 				// TODO: implement this
@@ -97,7 +107,7 @@ ipcRenderer.on('message', (e: Electron.Event, message: any) => {
 			store.pasteAfterElementById(message.payload);
 			break;
 		}
-		case ServerMessageType.PastepageElementInside: {
+		case ServerMessageType.PastePageElementInside: {
 			store.pasteInsideElementById(message.payload);
 			break;
 		}

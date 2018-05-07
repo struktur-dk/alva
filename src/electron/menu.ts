@@ -87,13 +87,14 @@ export function createMenu(): void {
 				{
 					label: 'New &Page',
 					enabled: !isSplashscreen,
-					accelerator: 'CmdOrCtrl+N'
+					accelerator: 'CmdOrCtrl+N',
+					click: () => ipcRenderer.send('message', { type: ServerMessageType.NewPage })
 				},
-				{
+				/* {
 					label: 'New P&roject',
 					enabled: !isSplashscreen,
 					accelerator: 'CmdOrCtrl+Shift+N'
-				},
+				}, */
 				{
 					type: 'separator'
 				},
