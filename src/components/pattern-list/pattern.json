@@ -1,0 +1,7 @@
+{
+	"name": "pattern-list",
+	"displayName": "Pattern List",
+	"description": "List patterns for element creation",
+	"flag": "alpha",
+	"version": "1.0.0"
+ }

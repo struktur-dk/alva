@@ -1,5 +1,6 @@
 export enum PreviewDocumentMode {
 	Live = 'live',
+	LiveMirror = 'live-mirror',
 	Static = 'static'
 }
 
@@ -7,10 +8,11 @@ export type PreviewDocumentConfig = LivePreviewDocumentConfig | StaticPreviewDoc
 
 export interface LivePreviewDocumentConfig {
 	data: object;
-	mode: PreviewDocumentMode.Live;
+	mode: PreviewDocumentMode.Live | PreviewDocumentMode.LiveMirror;
 }
 
 export interface StaticPreviewDocumentConfig {
+	content: string;
 	data: object;
 	mode: PreviewDocumentMode.Static;
 	scripts: string;
@@ -89,33 +91,40 @@ preview,
 </div>
 `;
 
+const LIVE_SCRIPTS = `
+<script src="/scripts/renderer.js" data-script="renderer"><\/script>
+<script src="/scripts/components.js" data-script="components"><\/script>
+<script src="/scripts/preview.js" data-script="preview"><\/script>
+`;
+
 export const previewDocument = (config: PreviewDocumentConfig) => `<!doctype html>
 <html>
 <head>
 	<meta charset="utf-8"/>
 	<title></title>
 	<style>
-		body {
+		html, body {
 			margin: 0;
+			background: white;
+		}
+		#preview {
+			background: white;
 		}
 	</style>
 </head>
 <body>
-	<div id="preview">${config.mode === PreviewDocumentMode.Live ? PRELOADER : ''}</div>
+	<div id="preview">
+		${config.mode === PreviewDocumentMode.Static ? config.content : ''}
+		${config.mode === PreviewDocumentMode.Live ? PRELOADER : ''}
+	</div>
 	<textarea data-data="alva" style="display: none">${encodeURIComponent(
 		JSON.stringify({
 			data: config.data,
 			mode: config.mode
 		})
 	)}</textarea>
-	${
-		config.mode === PreviewDocumentMode.Live
-			? `<script src="/scripts/vendor.js" data-script="vendor"><\/script>
-		<script src="/scripts/renderer.js" data-script="renderer"><\/script>
-		<script src="/scripts/components.js" data-script="components"><\/script>
-		<script src="/scripts/preview.js" data-script="preview"><\/script>`
-			: config.scripts
-	}
+	${config.mode === PreviewDocumentMode.Static ? config.scripts : ''}
+	${config.mode !== PreviewDocumentMode.Static ? LIVE_SCRIPTS : ''}
 </body>
 </html>
 `;

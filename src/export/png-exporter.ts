@@ -1,18 +1,19 @@
-import { ipcRenderer, remote } from 'electron';
-import { Exporter, ExportResult } from './exporter';
-import { ServerMessageType } from '../message';
-import { Store } from '../store/store';
+import { remote } from 'electron';
 import * as Url from 'url';
 import * as uuid from 'uuid';
 
-export class PngExporter extends Exporter {
-	public async createExport(): Promise<ExportResult> {
-		try {
-			this.contents = await this.createPngExport();
-			return { result: this.contents };
-		} catch (error) {
-			return { error };
-		}
+import * as Sender from '../message/client';
+import { ServerMessageType } from '../message';
+import { ViewStore } from '../store';
+import * as Types from '../types';
+
+export class PngExporter implements Types.Exporter {
+	public contents: Buffer;
+
+	private store: ViewStore;
+
+	public constructor(store: ViewStore) {
+		this.store = store;
 	}
 
 	private async createPngExport(): Promise<Buffer> {
@@ -26,7 +27,6 @@ export class PngExporter extends Exporter {
 			webview.webpreferences = 'useContentSize=yes, javascript=no';
 			document.body.insertBefore(webview, document.body.firstChild);
 
-			const store = Store.getInstance();
 			const scaleFactor = remote.screen.getPrimaryDisplay().scaleFactor;
 
 			let config;
@@ -34,15 +34,15 @@ export class PngExporter extends Exporter {
 
 			// (1) Request HTML contents from preview
 			const start = () => {
-				ipcRenderer.send('message', {
+				Sender.send({
 					type: ServerMessageType.ContentRequest,
-					id
+					id,
+					payload: undefined
 				});
 			};
 
 			// (2) Receive HTML response from preview and load into webview
-			// tslint:disable-next-line:no-any
-			const receive = (_, message: any) => {
+			const receive = message => {
 				if (message.type !== ServerMessageType.ContentResponse || message.id !== id) {
 					return;
 				}
@@ -50,7 +50,7 @@ export class PngExporter extends Exporter {
 				const payload = message.payload;
 				const parsed = Url.parse(payload.location);
 
-				if (parsed.host !== `localhost:${store.getServerPort()}`) {
+				if (parsed.host !== `localhost:${this.store.getServerPort()}`) {
 					return;
 				}
 
@@ -58,7 +58,6 @@ export class PngExporter extends Exporter {
 				webview.style.height = `${payload.height}px`;
 
 				config = payload;
-
 				webview.loadURL(
 					`data:text/html;charset=utf-8,${encodeURIComponent(payload.document)}`,
 					{
@@ -68,10 +67,13 @@ export class PngExporter extends Exporter {
 			};
 
 			// (3) Wait for webview to be ready and capture the page
-			const createPng = () => {
+			const createPng = (isSecondTry?: boolean) => {
 				if (!config) {
 					return;
 				}
+
+				// because of a bug in electron the second capture will only be triggered if we set the focus on this webview
+				webview.focus();
 
 				webview.capturePage(
 					{
@@ -84,7 +86,19 @@ export class PngExporter extends Exporter {
 						height: Math.round(config.height * scaleFactor)
 					},
 					capture => {
-						const pngBuffer: Buffer = capture.toPNG();
+						const captureSize = capture.getSize();
+						if (captureSize.width === 0 && captureSize.height === 0 && !isSecondTry) {
+							// If the captured image is of size 0 try the capture again
+							createPng(true);
+							return;
+						}
+
+						// resize the capture to the original screen size
+						const resizedCapture = capture.resize({
+							width: capture.getSize().width / scaleFactor
+						});
+
+						const pngBuffer: Buffer = resizedCapture.toPNG();
 						resolve(pngBuffer);
 
 						setTimeout(() => {
@@ -98,10 +112,11 @@ export class PngExporter extends Exporter {
 				if (webview.src === initial) {
 					return;
 				}
+
 				createPng();
 			});
 
-			ipcRenderer.on('message', receive);
+			Sender.receive(receive);
 
 			webview.addEventListener('dom-ready', () => {
 				if (started === id) {
@@ -112,5 +127,20 @@ export class PngExporter extends Exporter {
 				start();
 			});
 		});
+	}
+
+	public async execute(path: string): Promise<void> {
+		try {
+			this.contents = await this.createPngExport();
+
+			Sender.send({
+				id: uuid.v4(),
+				type: ServerMessageType.ExportPNG,
+				payload: { path, content: this.contents }
+			});
+		} catch (error) {
+			// Todo: Implement error message
+			return;
+		}
 	}
 }

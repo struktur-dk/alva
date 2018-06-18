@@ -1,0 +1,8 @@
+{
+	"name": "copy",
+	"displayName": "Copy",
+	"description": "Basic text style",
+	"version": "1.0.0",
+	"tags": ["atom", "copy"],
+	"flag": "alpha"
+}

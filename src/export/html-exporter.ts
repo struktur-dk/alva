@@ -1,61 +1,90 @@
-import { createCompiler } from '../preview/create-compiler';
-import { Exporter, ExportResult } from './exporter';
-import * as Fs from 'fs';
-import * as Path from 'path';
-import { previewDocument, PreviewDocumentMode } from '../preview/preview-document';
-import { Store } from '../store/store';
-import * as Util from 'util';
 import * as uuid from 'uuid';
 
-const SCRIPTS = ['vendor', 'renderer', 'components', 'preview'];
+import * as Sender from '../message/client';
+import { CreateScriptBundleResponse, ServerMessageType } from '../message';
+import { previewDocument, PreviewDocumentMode } from '../preview/preview-document';
+import { ViewStore } from '../store';
+import * as Types from '../types';
 
-const createScript = (name: string, content: string) =>
-	`<script data-script="${name}">${content}<\/script>`;
+export class HtmlExporter implements Types.Exporter {
+	public contents: Buffer;
+	private store: ViewStore;
 
-export class HtmlExporter extends Exporter {
-	public async createExport(): Promise<ExportResult> {
-		const store = Store.getInstance();
-		const project = store.getCurrentProject();
-		const currentPage = store.getCurrentPage();
-		const styleguide = store.getStyleguide();
+	public constructor(store: ViewStore) {
+		this.store = store;
+	}
+
+	public async execute(path: string): Promise<void> {
+		const project = this.store.getProject();
+		const patternLibrary = project.getPatternLibrary();
+		const currentPage = this.store.getCurrentPage();
+		const id = uuid.v4();
+
+		const componentScript = {
+			name: 'components',
+			path: '',
+			contents: Buffer.from(project.getPatternLibrary().getBundle())
+		};
 
 		// TODO: Come up with good user-facing errors
-		if (!project || !currentPage || !styleguide) {
-			return {};
+		if (!project || !currentPage) {
+			// Todo: Implement error message
+			return;
 		}
 
-		const data = {
-			id: uuid.v4(),
-			type: 'state',
-			payload: {
-				mode: PreviewDocumentMode.Static,
-				pageId: currentPage.getId(),
-				pages: project.getPages().map(page => page.toJsonObject({ forRendering: true }))
+		// (1) request bundled scripts
+		const start = () => {
+			Sender.send({
+				type: ServerMessageType.CreateScriptBundleRequest,
+				id,
+				payload: project.toJSON()
+			});
+		};
+
+		const receive = async message => {
+			if (message.type !== ServerMessageType.CreateScriptBundleResponse || message.id !== id) {
+				return;
 			}
+
+			const msg = message as CreateScriptBundleResponse;
+
+			const scripts = [componentScript, ...msg.payload]
+				.map(file => `<script data-script="${file.name}">${file.contents}<\/script>`)
+				.join('\n');
+
+			const data = {
+				id: uuid.v4(),
+				type: 'state',
+				payload: {
+					elementActions: project.getElementActions().map(a => a.toJSON()),
+					elementContents: project.getElementContents().map(e => e.toJSON()),
+					elements: project.getElements().map(e => e.toJSON()),
+					mode: PreviewDocumentMode.Static,
+					pageId: currentPage.getId(),
+					pages: project.getPages().map(page => page.toJSON()),
+					patternProperties: patternLibrary.getPatternProperties().map(p => p.toJSON()),
+					patterns: patternLibrary.getPatterns().map(p => p.toJSON()),
+					userStore: project.getUserStore().toJSON()
+				}
+			};
+
+			const document = previewDocument({
+				content: '',
+				data,
+				mode: PreviewDocumentMode.Static,
+				scripts
+			});
+
+			this.contents = Buffer.from(document);
+
+			Sender.send({
+				id: uuid.v4(),
+				type: ServerMessageType.ExportHTML,
+				payload: { path, content: this.contents }
+			});
 		};
 
-		const compiler = createCompiler(styleguide);
-		await Util.promisify(compiler.run).bind(compiler)();
-
-		const fs = (await compiler.outputFileSystem) as typeof Fs;
-
-		const scripts = SCRIPTS.map(name => [
-			name,
-			fs.readFileSync(Path.posix.join('/', `${name}.js`)).toString()
-		])
-			.map(([name, content]) => createScript(name, content))
-			.join('\n');
-
-		const document = previewDocument({
-			data,
-			mode: PreviewDocumentMode.Static,
-			scripts
-		});
-
-		this.contents = Buffer.from(document);
-
-		return {
-			result: this.contents
-		};
+		Sender.receive(receive);
+		start();
 	}
 }

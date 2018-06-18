@@ -1,38 +1,43 @@
-import { ipcRenderer, MenuItemConstructorOptions, remote } from 'electron';
+import * as Sender from '../message/client';
+import { MenuItemConstructorOptions, remote } from 'electron';
 import { ServerMessageType } from '../message';
-import { PageElement } from '../store/page/page-element';
-import { Store } from '../store/store';
+import { Element } from '../model';
+import { ViewStore } from '../store';
+import * as Types from '../types';
+import * as uuid from 'uuid';
 
-const store = Store.getInstance();
-
-export function elementMenu(element: PageElement): void {
+export function elementMenu(element: Element, store: ViewStore): void {
 	const defaultPasteItems = [
 		{
 			label: 'Paste Below',
-			enabled: store.hasApplicableClipboardItem() && !element.isRoot(),
+			enabled:
+				store.hasApplicableClipboardItem() && element.getRole() !== Types.ElementRole.Root,
 			click: () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.PastePageElementBelow,
+				Sender.send({
+					id: uuid.v4(),
+					type: ServerMessageType.PasteElementBelow,
 					payload: element.getId()
 				});
 			}
 		},
 		{
 			label: 'Paste Inside',
-			enabled: store.hasApplicableClipboardItem(),
+			enabled: store.hasApplicableClipboardItem() && element.acceptsChildren(),
 			click: () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.PastePageElementInside,
+				Sender.send({
+					id: uuid.v4(),
+					type: ServerMessageType.PasteElementInside,
 					payload: element.getId()
 				});
 			}
 		},
 		{
 			label: 'Duplicate',
-			enabled: !element.isRoot(),
+			enabled: element.getRole() !== Types.ElementRole.Root,
 			click: () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.DuplicatePageElement,
+				Sender.send({
+					id: uuid.v4(),
+					type: ServerMessageType.DuplicateElement,
 					payload: element.getId()
 				});
 			}
@@ -42,10 +47,11 @@ export function elementMenu(element: PageElement): void {
 	const template: MenuItemConstructorOptions[] = [
 		{
 			label: 'Cut',
-			enabled: !element.isRoot(),
+			enabled: element.getRole() !== Types.ElementRole.Root,
 			click: () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.CutPageElement,
+				Sender.send({
+					id: uuid.v4(),
+					type: ServerMessageType.CutElement,
 					payload: element.getId()
 				});
 				remote.Menu.sendActionToFirstResponder('cut:');
@@ -53,10 +59,11 @@ export function elementMenu(element: PageElement): void {
 		},
 		{
 			label: 'Copy',
-			enabled: !element.isRoot(),
+			enabled: element.getRole() !== Types.ElementRole.Root,
 			click: () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.CopyPageElement,
+				Sender.send({
+					id: uuid.v4(),
+					type: ServerMessageType.CopyElement,
 					payload: element.getId()
 				});
 				remote.Menu.sendActionToFirstResponder('copy:');
@@ -64,10 +71,11 @@ export function elementMenu(element: PageElement): void {
 		},
 		{
 			label: 'Delete',
-			enabled: !element.isRoot(),
+			enabled: element.getRole() !== Types.ElementRole.Root,
 			click: () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.DeletePageElement,
+				Sender.send({
+					id: uuid.v4(),
+					type: ServerMessageType.DeleteElement,
 					payload: element.getId()
 				});
 				remote.Menu.sendActionToFirstResponder('delete:');
@@ -84,8 +92,42 @@ export function elementMenu(element: PageElement): void {
 				remote.Menu.sendActionToFirstResponder('paste:');
 			}
 		} */
-		...(!element.isNameEditable() ? defaultPasteItems : [])
+		...(!element.getNameEditable() ? defaultPasteItems : [])
 	];
 
-	remote.Menu.buildFromTemplate(template).popup();
+	remote.Menu.buildFromTemplate(template).popup({});
+}
+
+export function layoutMenu(store: ViewStore): void {
+	const template: MenuItemConstructorOptions[] = [
+		{
+			label: 'Pages',
+			type: 'checkbox',
+			checked: store.getShowPages(),
+			enabled: store.getActiveAppView() === Types.AlvaView.PageDetail,
+			click: (item, checked) => {
+				store.setShowPages(item.checked);
+			}
+		},
+		{
+			label: 'Elements',
+			type: 'checkbox',
+			checked: store.getShowLeftSidebar(),
+			enabled: store.getActiveAppView() === Types.AlvaView.PageDetail,
+			click: (item, checked) => {
+				store.setShowLeftSidebar(item.checked);
+			}
+		},
+		{
+			label: 'Properties',
+			type: 'checkbox',
+			checked: store.getShowRightSidebar(),
+			enabled: store.getActiveAppView() === Types.AlvaView.PageDetail,
+			click: (item, checked) => {
+				store.setShowRightSidebar(item.checked);
+			}
+		}
+	];
+
+	remote.Menu.buildFromTemplate(template).popup({});
 }

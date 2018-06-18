@@ -1,43 +1,55 @@
-import { ipcRenderer } from 'electron';
-import { Exporter, ExportResult } from './exporter';
-import { ServerMessageType } from '../message';
-import { Page } from '../store/page/page';
-import { Store } from '../store/store';
 import * as uuid from 'uuid';
 
-export class SketchExporter extends Exporter {
-	public async createExport(): Promise<ExportResult> {
-		return new Promise<ExportResult>((resolve, reject) => {
-			const id = uuid.v4();
-			const page = Store.getInstance().getCurrentPage() as Page;
-			const artboardName = page.getName();
-			const pageName = page.getName();
+import * as Sender from '../message/client';
+import { ServerMessageType } from '../message';
+import { Page } from '../model';
+import { ViewStore } from '../store';
+import * as Types from '../types';
 
-			// (1) request asketch.json from preview
-			const start = () => {
-				ipcRenderer.send('message', {
-					type: ServerMessageType.SketchExportRequest,
-					id,
-					payload: {
-						artboardName,
-						pageName
-					}
-				});
-			};
+export class SketchExporter implements Types.Exporter {
+	public contents: Buffer;
 
-			// tslint:disable-next-line:no-any
-			const receive = (_, message: any) => {
-				if (message.type !== ServerMessageType.SketchExportResponse || message.id !== id) {
-					return;
+	private store: ViewStore;
+
+	public constructor(store: ViewStore) {
+		this.store = store;
+	}
+
+	public execute(path: string): void {
+		const id = uuid.v4();
+		const page = this.store.getCurrentPage() as Page;
+		const artboardName = page.getName();
+		const pageName = page.getName();
+
+		// (1) request asketch.json from preview
+		const start = () => {
+			Sender.send({
+				type: ServerMessageType.SketchExportRequest,
+				id,
+				payload: {
+					artboardName,
+					pageName
 				}
+			});
+		};
 
-				this.contents = Buffer.from(JSON.stringify(message.payload.page, null, '\t'));
-				resolve({ result: this.contents });
+		const receive = message => {
+			if (message.type !== ServerMessageType.SketchExportResponse || message.id !== id) {
+				// Todo: Implement error message
 				return;
-			};
+			}
 
-			ipcRenderer.on('message', receive);
-			start();
-		});
+			this.contents = Buffer.from(JSON.stringify(message.payload.page, null, '\t'));
+
+			Sender.send({
+				id: uuid.v4(),
+				type: ServerMessageType.ExportSketch,
+				payload: { path, content: this.contents }
+			});
+			return;
+		};
+
+		Sender.receive(receive);
+		start();
 	}
 }

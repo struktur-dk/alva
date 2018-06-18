@@ -1,0 +1,8 @@
+{
+	"displayName": "Search",
+	"description": "Inline filter / search input",
+	"flag": "alpha",
+	"name": "input",
+	"version": "1.0.0",
+	"tags": ["input", "atom"]
+}

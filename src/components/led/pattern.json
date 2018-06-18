@@ -1,0 +1,8 @@
+{
+	"displayName": "LED",
+	"description": "Signal states",
+	"main": "./led",
+	"name": "led",
+	"flag": "alpha",
+	"version": "1.0.0"
+ }
